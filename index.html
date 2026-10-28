@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Offline browser-based AI chatbot powered by WebGPU and Transformers.js. No server, no APIs, 100% private and offline.">
+  <meta name="theme-color" content="#0f172a">
+  <title>Offline AI Assistant (WebGPU)</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Offline%20AI%20Assistant%22%2C%22short_name%22%3A%22OfflineAI%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f172a%22%2C%22theme_color%22%3A%22%230f172a%22%7D">
+</head>
+<body>
+  <div class="app-container" id="appContainer">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-area">
+          <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 01-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+          </svg>
+          <div class="logo-text">
+            <h2>Offline AI</h2>
+            <span class="subtext">Client-Side WebGPU</span>
+          </div>
+        </div>
+        <button class="icon-button mobile-only" id="closeSidebarBtn" title="Close sidebar" aria-label="Close sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="sidebar-action">
+        <button class="btn btn-primary new-chat-btn" id="newChatBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          <span>New Chat</span>
+        </button>
+      </div>
+
+      <div class="conversations-section">
+        <div class="section-title">Conversations</div>
+        <div class="conversations-list" id="conversationsList">
+          <!-- Dynamic conversation items -->
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="sidebar-link-btn" id="openOfflineManagerBtn">
+          <span class="status-indicator-dot" id="storageStatusDot"></span>
+          <div class="link-label">
+            <span class="main-label">Offline Readiness</span>
+            <span class="sub-label" id="offlineStatusText">Checking cache...</span>
+          </div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chevron-icon">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Sidebar Backdrop for Mobile -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Navigation Bar -->
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <button class="icon-button" id="toggleSidebarBtn" title="Toggle sidebar" aria-label="Toggle sidebar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+          </button>
+          <div class="chat-header-info">
+            <h1 class="chat-title" id="currentChatTitle">New Conversation</h1>
+            <button class="icon-button-small" id="renameCurrentChatBtn" title="Rename conversation" aria-label="Rename conversation">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="top-bar-right">
+          <!-- Model Status Badge -->
+          <div class="model-badge" id="modelStatusBadge" title="AI Model Status">
+            <span class="badge-dot" id="modelBadgeDot"></span>
+            <span class="badge-text" id="modelBadgeText">Model Unloaded</span>
+          </div>
+
+          <!-- Offline Manager Trigger -->
+          <button class="icon-button" id="topOfflineBtn" title="Offline Cache & Model Manager" aria-label="Offline Cache & Model Manager">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 5.625c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
+            </svg>
+          </button>
+
+          <!-- Settings Trigger -->
+          <button class="icon-button" id="openSettingsBtn" title="AI Parameters & Model Settings" aria-label="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+
+          <!-- Theme Toggle -->
+          <button class="icon-button" id="themeToggleBtn" title="Toggle Dark/Light Mode" aria-label="Toggle theme">
+            <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+            </svg>
+            <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Chat Messages Container -->
+      <section class="messages-container" id="messagesContainer">
+        <!-- Empty / Welcome State -->
+        <div class="welcome-screen" id="welcomeScreen">
+          <div class="welcome-hero">
+            <div class="welcome-icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
+              </svg>
+            </div>
+            <h2>100% In-Browser Offline AI</h2>
+            <p class="welcome-sub">
+              This application runs real neural language models locally using your device's GPU via WebGPU.
+              No cloud servers, no paid subscriptions, and no data leaving your machine.
+            </p>
+          </div>
+
+          <!-- Model Download Callout if not loaded -->
+          <div class="model-action-card" id="welcomeModelCard">
+            <div class="card-status-badge" id="cardModelStatusBadge">Initialization Needed</div>
+            <h3 id="cardModelTitle">AI Model Not Yet Loaded</h3>
+            <p id="cardModelDesc">
+              To operate offline, the model weights (~250MB–400MB) must be downloaded once into your browser's persistent cache.
+              Once downloaded, you can disconnect your internet and chat freely.
+            </p>
+            <div class="model-card-hardware">
+              <span class="hw-pill" id="hwWebGpuStatus">Checking WebGPU...</span>
+              <span class="hw-pill" id="hwSelectedModelPill">Model: SmolLM2-360M (q4)</span>
+            </div>
+            <div class="card-actions">
+              <button class="btn btn-primary" id="welcomeDownloadBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                <span>Download & Initialize Model</span>
+              </button>
+              <button class="btn btn-secondary" id="welcomeConfigureBtn">Select Different Model</button>
+            </div>
+          </div>
+
+          <!-- Suggested Prompts -->
+          <div class="suggestion-grid" id="suggestionGrid">
+            <button class="suggestion-chip" data-prompt="Explain how neural networks learn in 3 simple bullet points.">
+              <span class="chip-title">Explain AI Concepts</span>
+              <span class="chip-desc">How neural networks learn in simple bullet points</span>
+            </button>
+            <button class="suggestion-chip" data-prompt="Write a clean JavaScript function to debounce rapid user input events.">
+              <span class="chip-title">Code Assistance</span>
+              <span class="chip-desc">Write a vanilla JS debounce function with comments</span>
+            </button>
+            <button class="suggestion-chip" data-prompt="What are the key advantages of running language models locally inside the browser?">
+              <span class="chip-title">Offline Privacy</span>
+              <span class="chip-desc">Advantages of browser-native local AI inference</span>
+            </button>
+            <button class="suggestion-chip" data-prompt="Draft a friendly email inviting a team to an offline-first technology workshop.">
+              <span class="chip-title">Drafting Content</span>
+              <span class="chip-desc">Invite team to an offline-first technology workshop</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Chat Messages List -->
+        <div class="messages-list" id="messagesList">
+          <!-- Dynamic Message Bubbles -->
+        </div>
+      </section>
+
+      <!-- Bottom Chat Input Area -->
+      <footer class="chat-input-area">
+        <!-- Floating Generation Status / Stop Control -->
+        <div class="generation-bar" id="generationBar" style="display: none;">
+          <div class="gen-indicator">
+            <span class="pulse-spinner"></span>
+            <span class="gen-text" id="generationText">Generating response...</span>
+          </div>
+          <button class="btn btn-danger btn-sm" id="stopGenerationBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="6" y="6" width="12" height="12" rx="2" />
+            </svg>
+            <span>Stop Generating</span>
+          </button>
+        </div>
+
+        <!-- Input Box -->
+        <div class="input-wrapper">
+          <textarea
+            class="chat-input"
+            id="chatInput"
+            placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
+            rows="1"
+            aria-label="Message input"
+          ></textarea>
+          <div class="input-actions">
+            <button class="btn btn-primary send-btn" id="sendBtn" title="Send message" disabled aria-label="Send message">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Status Footer -->
+        <div class="input-footer">
+          <span class="footer-info" id="footerHardwareInfo">Detecting device...</span>
+          <span class="footer-shortcut">Enter: Send | Shift+Enter: Line break</span>
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <!-- MODAL: Settings -->
+  <dialog class="modal-dialog" id="settingsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Model & Inference Settings</h3>
+        <button class="icon-button modal-close" id="closeSettingsModal" aria-label="Close settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <!-- Model Selection -->
+        <div class="form-group">
+          <label for="modelSelect">Language Model</label>
+          <select id="modelSelect" class="form-select">
+            <option value="onnx-community/SmolLM2-360M-Instruct" selected>SmolLM2 360M Instruct (Recommended for Intel Iris Xe ~260 MB)</option>
+            <option value="onnx-community/SmolLM2-135M-Instruct">SmolLM2 135M Instruct (Ultra-lightweight ~120 MB)</option>
+            <option value="onnx-community/Qwen2.5-0.5B-Instruct">Qwen2.5 0.5B Instruct (Higher capability ~380 MB)</option>
+            <option value="onnx-community/Llama-3.2-1B-Instruct">Llama 3.2 1B Instruct (Heavy ~750 MB, requires good GPU)</option>
+          </select>
+          <span class="form-hint">Models are quantized for browser memory efficiency. Switching models requires downloading the new weights.</span>
+        </div>
+
+        <!-- Inference Device -->
+        <div class="form-group">
+          <label for="deviceSelect">Hardware Backend</label>
+          <select id="deviceSelect" class="form-select">
+            <option value="webgpu" selected>WebGPU (Hardware GPU Accelerated)</option>
+            <option value="wasm">WASM / CPU (CPU Fallback, Slower)</option>
+          </select>
+          <span class="form-hint" id="deviceHint">WebGPU provides 5x–20x faster generation on integrated and dedicated graphics.</span>
+        </div>
+
+        <!-- Quantization Dtype -->
+        <div class="form-group">
+          <label for="dtypeSelect">Weight Quantization (dtype)</label>
+          <select id="dtypeSelect" class="form-select">
+            <option value="q4" selected>q4 (4-bit Integer - Fastest, lowest RAM usage)</option>
+            <option value="q4f16">q4f16 (4-bit with FP16 activations)</option>
+          </select>
+        </div>
+
+        <!-- Generation Parameters -->
+        <div class="form-group">
+          <div class="range-header">
+            <label for="tempRange">Temperature: <strong id="tempValue">0.7</strong></label>
+            <span class="range-desc">Higher = creative, Lower = focused</span>
+          </div>
+          <input type="range" id="tempRange" min="0.0" max="1.5" step="0.05" value="0.7" class="form-range">
+        </div>
+
+        <div class="form-group">
+          <div class="range-header">
+            <label for="tokensRange">Max New Tokens: <strong id="tokensValue">512</strong></label>
+            <span class="range-desc">Maximum output length</span>
+          </div>
+          <input type="range" id="tokensRange" min="64" max="1024" step="32" value="512" class="form-range">
+        </div>
+
+        <div class="form-group">
+          <div class="range-header">
+            <label for="topPRange">Top-P Sampling: <strong id="topPValue">0.9</strong></label>
+          </div>
+          <input type="range" id="topPRange" min="0.1" max="1.0" step="0.05" value="0.9" class="form-range">
+        </div>
+
+        <!-- System Prompt -->
+        <div class="form-group">
+          <label for="systemPrompt">System Prompt</label>
+          <textarea id="systemPrompt" class="form-textarea" rows="3">You are an intelligent, helpful, and concise AI assistant running completely offline inside the user's browser via WebGPU.</textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="resetSettingsBtn">Reset Defaults</button>
+        <button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL: Offline Readiness & Cache Manager -->
+  <dialog class="modal-dialog modal-large" id="offlineModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Offline Readiness & Local Cache</h3>
+        <button class="icon-button modal-close" id="closeOfflineModal" aria-label="Close offline manager">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="section-intro">
+          This system verifies that all code, scripts, WebGPU modules, and AI model weights are stored inside your browser's persistent storage so you can operate without an internet connection.
+        </p>
+
+        <!-- Readiness Checklist -->
+        <div class="readiness-grid">
+          <!-- Check 1: WebGPU -->
+          <div class="checklist-item" id="checkWebGpu">
+            <div class="check-icon" id="checkWebGpuIcon">⏳</div>
+            <div class="check-details">
+              <strong>WebGPU Hardware Acceleration</strong>
+              <span id="checkWebGpuDetail">Checking device adapter...</span>
+            </div>
+          </div>
+
+          <!-- Check 2: Service Worker & App Shell -->
+          <div class="checklist-item" id="checkSw">
+            <div class="check-icon" id="checkSwIcon">⏳</div>
+            <div class="check-details">
+              <strong>Service Worker & Application Shell</strong>
+              <span id="checkSwDetail">Checking service worker cache...</span>
+            </div>
+          </div>
+
+          <!-- Check 3: Model Storage -->
+          <div class="checklist-item" id="checkModel">
+            <div class="check-icon" id="checkModelIcon">⏳</div>
+            <div class="check-details">
+              <strong>AI Model Weights & Tokenizer</strong>
+              <span id="checkModelDetail">Checking local Cache Storage...</span>
+            </div>
+          </div>
+
+          <!-- Check 4: Storage Quota -->
+          <div class="checklist-item" id="checkStorage">
+            <div class="check-icon" id="checkStorageIcon">⏳</div>
+            <div class="check-details">
+              <strong>Browser Storage Quota</strong>
+              <span id="checkStorageDetail">Estimating available disk space...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download & Progress Section -->
+        <div class="cache-progress-box" id="cacheProgressBox">
+          <div class="progress-header">
+            <span class="progress-title" id="downloadStatusTitle">Model Download Status</span>
+            <span class="progress-percent" id="downloadStatusPercent">0%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="downloadProgressBar" style="width: 0%;"></div>
+          </div>
+          <div class="progress-sub" id="downloadStatusSub">No download in progress.</div>
+          
+          <!-- File Breakdown List -->
+          <div class="files-breakdown" id="filesBreakdown"></div>
+        </div>
+
+        <!-- Offline Verification Guide -->
+        <div class="offline-guide-box">
+          <h4>How to Verify Offline Operation:</h4>
+          <ol>
+            <li>Click <strong>Download & Cache Model</strong> below while connected to the internet.</li>
+            <li>Wait until all checkmarks turn green and the status shows <strong>Offline Ready</strong>.</li>
+            <li>Disconnect your Wi-Fi or open Browser DevTools &rarr; Network tab &rarr; select <strong>Offline</strong>.</li>
+            <li>Refresh the page (F5) &mdash; the app will load from the Service Worker and respond locally without any internet!</li>
+          </ol>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" id="clearCacheBtn">Clear Model Cache</button>
+        <button class="btn btn-primary" id="startModelDownloadBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+          </svg>
+          <span>Download & Cache Model</span>
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL: Rename Chat -->
+  <dialog class="modal-dialog" id="renameModal">
+    <div class="modal-content modal-small">
+      <div class="modal-header">
+        <h3>Rename Conversation</h3>
+        <button class="icon-button modal-close" id="closeRenameModal" aria-label="Close dialog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="renameInput">Conversation Title</label>
+          <input type="text" id="renameInput" class="form-input" maxlength="60">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancelRenameBtn">Cancel</button>
+        <button class="btn btn-primary" id="confirmRenameBtn">Save</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- Main Application Script -->
+  <script src="script.js" type="module"></script>
+</body>
+</html>
+
